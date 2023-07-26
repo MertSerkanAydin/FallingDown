@@ -2,87 +2,161 @@
 //  GameScene.swift
 //  FallingDown
 //
-//  Created by Mert Serkan Aydın on 26.07.2023.
+//  Created by Mert Serkan Aydın on 25.07.2023.
 //
 
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
-    private var label : SKLabelNode?
-    private var spinnyNode : SKShapeNode?
+    var ball: SKSpriteNode!
+    var ground: SKSpriteNode!
+    var gameTimer: Timer?
+    var scoreTimer: Timer?
+    var scoreLabel: SKLabelNode!
+    var gameOver = false
+    var nodePosition = CGPoint()
+    var startTouch = CGPoint()
+    
+    var score = 0 {
+        didSet {
+            scoreLabel.text = "Score: \(score)"
+        }
+    }
     
     override func didMove(to view: SKView) {
         
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
-        }
+        backgroundColor = .systemBlue
+        createBall()
+        createScoreLabel()
         
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
+        //        yerçekimi
+        physicsWorld.gravity = .zero
         
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 2.5
-            
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
-        }
+        physicsWorld.contactDelegate = self
+        
+        //        ground oluşturma hızı
+        gameTimer = Timer.scheduledTimer(timeInterval: 5.20, target: self, selector: #selector(createGround), userInfo: nil, repeats: true)
+        
+        //        score artma hızı
+        scoreTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(scoreUp), userInfo: nil, repeats: true)
+        
+        //        let edgeFrame = CGRect(origin: CGPoint(x: ((self.view?.frame.minX)! - 9) ,y: (self.view?.frame.minY)!), size: CGSize(width: (self.view?.frame.width)! + 12, height: (self.view?.frame.height)!))
+        
     }
     
-    
-    func touchDown(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.green
-            self.addChild(n)
-        }
+    @objc func scoreUp() {
+        score += 1
     }
     
-    func touchMoved(toPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.blue
-            self.addChild(n)
-        }
+    //    ground oluşturma
+    @objc func createGround() {
+        score += 1
+        ground = SKSpriteNode(imageNamed: "ground")
+        ground.physicsBody = SKPhysicsBody(texture: ground.texture!, alphaThreshold: 1.5, size: ground.size)
+        ground.physicsBody?.categoryBitMask = 1
+        ground.position = CGPoint(x: Int.random(in: 50...400), y: 0)
+        ground.physicsBody?.restitution = 0.0
+        ground.physicsBody?.velocity = CGVector(dx: 0, dy: 250)   //hızını ayarladık
+        //        ground.physicsBody?.angularVelocity = 5 //spin ekledik
+        ground.physicsBody?.linearDamping = 0  //hızı asla yavaşlamayacak dedik
+        addChild(ground)
+        
+        //        ground.physicsBody?.angularDamping = 0 //spini asla yavaşlamıcak dedik
     }
     
-    func touchUp(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.red
-            self.addChild(n)
-        }
+    //    topu oluşturma
+    func createBall() {
+        ball = SKSpriteNode(imageNamed: "ball")
+        ball.position = CGPoint(x: frame.size.width / 2, y: frame.size.height / 1.3)
+        ball.physicsBody = SKPhysicsBody(texture: ball.texture!, alphaThreshold: 1.5, size: ball.size)
+        ball.physicsBody?.contactTestBitMask = 1
+        ball.physicsBody?.restitution = 0.0
+        addChild(ball)
+    }
+    
+    //    scorelabel oluşturma
+    func createScoreLabel() {
+        scoreLabel = SKLabelNode(fontNamed: "Chalkduster")
+        scoreLabel.position = CGPoint(x: 16, y: 16)
+        scoreLabel.horizontalAlignmentMode = .left
+        addChild(scoreLabel)
+        
+        score = 0
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
+        let touch = touches.first
+        if let location = touch?.location(in: self) {
+            if ball.position.x > frame.minX {
+                startTouch = location
+                nodePosition = ball.position
+            }
         }
-        
-        for t in touches { self.touchDown(atPoint: t.location(in: self)) }
     }
     
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
+        let touch = touches.first
+        if let location = touch?.location(in: self) {
+            if ball.position.x >= frame.minX && ball.position.x <= frame.maxX && ball.position.y <= frame.maxY {
+                ball.run(SKAction.move(to: CGPoint(x:  nodePosition.x + location.x - startTouch.x, y: nodePosition.y + location.y - startTouch.y), duration: 0.03))
+            } else {
+                //                ball.position.x = frame.minX
+                //                ball.position.x = frame.maxX
+                //                ball.position.y = frame.maxY
+            }
+            
+        }
+        
+        //        if ball.position.x <= self.frame.minX {
+        //            ball.position.x <=
+        //        }
     }
     
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
-    }
-    
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
-    }
-    
-    
+    //    frame boyutunu geçen groundları silme
     override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
+        
+        if ball.position.x <= frame.minX {
+            ball.position.x = frame.minX + 5
+        } else if ball.position.x >= frame.maxX {
+            ball.position.x = frame.maxX
+        } else if ball.position.y >= frame.maxY {
+            ball.position.y = frame.maxY
+        }
+        
+        for node in children {
+            if node.position.y > 950 {
+                node.removeFromParent()
+            }
+        }
+    }
+    
+    //    çarpşışma
+    func didBegin(_ contact: SKPhysicsContact) {
+        self.view?.isPaused = true
+        showError()
+        gameOver = true
+        //        gameTimer?.invalidate()
+    }
+    
+    //    tekrar oyna butonu
+    func playAgain() {
+        guard gameOver == true else {return}
+        score = 0
+        self.view?.isPaused = false
+        removeAllChildren()
+        createBall()
+        createScoreLabel()
+    }
+    
+    //    yandığında çıkan error methodu
+    func showError() {
+        let ac = UIAlertController(title: "Game  Over", message: "Your Score is: \(score)", preferredStyle: .alert)
+        ac.addAction(UIAlertAction(title: "OK", style: .default))
+        ac.addAction(UIAlertAction(title: "Play Again", style: .default, handler: { UIAlertAction in
+            self.playAgain()
+        }))
+        self.view?.window?.rootViewController?.present(ac, animated: true, completion: nil)
     }
 }
