@@ -18,6 +18,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var gameOver = false
     var nodePosition = CGPoint()
     var startTouch = CGPoint()
+    var highScore = 0
     
     var score = 0 {
         didSet {
@@ -26,6 +27,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func didMove(to view: SKView) {
+        
+        //        highscore Check
+        let storedHighScore = UserDefaults.standard.object(forKey: "highscore")
+        
+        if storedHighScore == nil {
+            highScore = 0
+        }
+        
+        if let newScore = storedHighScore as? Int {
+            highScore = newScore
+        }
         
         backgroundColor = .systemBlue
         createBall()
@@ -41,8 +53,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         //        score artma hızı
         scoreTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(scoreUp), userInfo: nil, repeats: true)
-        
-        //        let edgeFrame = CGRect(origin: CGPoint(x: ((self.view?.frame.minX)! - 9) ,y: (self.view?.frame.minY)!), size: CGSize(width: (self.view?.frame.width)! + 12, height: (self.view?.frame.height)!))
         
     }
     
@@ -62,7 +72,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         //        ground.physicsBody?.angularVelocity = 5 //spin ekledik
         ground.physicsBody?.linearDamping = 0  //hızı asla yavaşlamayacak dedik
         addChild(ground)
-        
         //        ground.physicsBody?.angularDamping = 0 //spini asla yavaşlamıcak dedik
     }
     
@@ -101,30 +110,22 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         if let location = touch?.location(in: self) {
             if ball.position.x >= frame.minX && ball.position.x <= frame.maxX && ball.position.y <= frame.maxY {
                 ball.run(SKAction.move(to: CGPoint(x:  nodePosition.x + location.x - startTouch.x, y: nodePosition.y + location.y - startTouch.y), duration: 0.03))
-            } else {
-                //                ball.position.x = frame.minX
-                //                ball.position.x = frame.maxX
-                //                ball.position.y = frame.maxY
             }
-            
         }
-        
-        //        if ball.position.x <= self.frame.minX {
-        //            ball.position.x <=
-        //        }
     }
     
-    //    frame boyutunu geçen groundları silme
     override func update(_ currentTime: TimeInterval) {
         
+        //        topun frame kenarlarından çıkmasını engelleme
         if ball.position.x <= frame.minX {
             ball.position.x = frame.minX + 5
         } else if ball.position.x >= frame.maxX {
-            ball.position.x = frame.maxX
+            ball.position.x = frame.maxX - 5
         } else if ball.position.y >= frame.maxY {
-            ball.position.y = frame.maxY
+            ball.position.y = frame.maxY - 5
         }
         
+        //    frame boyutunu geçen groundları silme
         for node in children {
             if node.position.y > 950 {
                 node.removeFromParent()
@@ -135,9 +136,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     //    çarpşışma
     func didBegin(_ contact: SKPhysicsContact) {
         self.view?.isPaused = true
-        showError()
         gameOver = true
-        //        gameTimer?.invalidate()
+        if self.score > self.highScore {
+            highScore = score
+            UserDefaults.standard.set(self.highScore, forKey: "highscore")
+        }
+        showError()
     }
     
     //    tekrar oyna butonu
@@ -152,7 +156,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     //    yandığında çıkan error methodu
     func showError() {
-        let ac = UIAlertController(title: "Game  Over", message: "Your Score is: \(score)", preferredStyle: .alert)
+        let ac = UIAlertController(title: "Game  Over", message: "Your Score is: \(score) \n Your Highscore is: \(highScore)", preferredStyle: .alert)
         ac.addAction(UIAlertAction(title: "OK", style: .default))
         ac.addAction(UIAlertAction(title: "Play Again", style: .default, handler: { UIAlertAction in
             self.playAgain()
