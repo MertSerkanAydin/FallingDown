@@ -19,6 +19,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var nodePosition = CGPoint()
     var startTouch = CGPoint()
     var highScore = 0
+    var highScoreLabel: SKLabelNode!
+    var tapToStartLabel: SKLabelNode!
+    var gameStarted = false
+    
     
     var score = 0 {
         didSet {
@@ -27,6 +31,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func didMove(to view: SKView) {
+        backgroundColor = .systemBlue
+        physicsWorld.gravity = .zero
+        physicsWorld.contactDelegate = self
         
         //        highscore Check
         let storedHighScore = UserDefaults.standard.object(forKey: "highscore")
@@ -39,21 +46,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             highScore = newScore
         }
         
-        backgroundColor = .systemBlue
-        createBall()
-        createScoreLabel()
-        
-        //        yerçekimi
-        physicsWorld.gravity = .zero
-        
-        physicsWorld.contactDelegate = self
-        
-        //        ground oluşturma hızı
-        gameTimer = Timer.scheduledTimer(timeInterval: 5.20, target: self, selector: #selector(createGround), userInfo: nil, repeats: true)
-        
-        //        score artma hızı
-        scoreTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(scoreUp), userInfo: nil, repeats: true)
-        
+        if gameStarted == false {
+            createTapToStartLabel()
+            createHighScoreLabel()
+            createBall()
+            createScoreLabel()
+            
+            ball.isHidden = true
+            scoreLabel.isHidden = true
+            
+            gameStarted = true
+            
+        }
     }
     
     @objc func scoreUp() {
@@ -95,6 +99,45 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         score = 0
     }
     
+    //    creating tapToStartLabel
+    func createTapToStartLabel() {
+        tapToStartLabel = SKLabelNode(fontNamed: "")
+        tapToStartLabel.position = CGPoint(x: frame.midX, y: frame.midY - 20)
+        tapToStartLabel.text = "Tap to Start"
+        addChild(tapToStartLabel)
+    }
+    
+    //    creating highscoreLabel
+    func createHighScoreLabel() {
+        highScoreLabel = SKLabelNode(fontNamed: "")
+        highScoreLabel.position = CGPoint(x: frame.midX, y: frame.midY)
+        highScoreLabel.horizontalAlignmentMode = .center
+        highScoreLabel.text = "Highscore: \(highScore)"
+        addChild(highScoreLabel)
+    }
+    
+    //    game start
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if gameStarted == true {
+            highScoreLabel.removeFromParent()
+            tapToStartLabel.removeFromParent()
+            
+            
+            ball.isHidden = false
+            scoreLabel.isHidden = false
+            
+            //        ground oluşturma hızı
+            gameTimer = Timer.scheduledTimer(timeInterval: 0.20, target: self, selector: #selector(createGround), userInfo: nil, repeats: true)
+            
+            //        score artma hızı
+            scoreTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(scoreUp), userInfo: nil, repeats: true)
+            
+            gameStarted = false
+            
+        }
+    }
+    
+    //    ball movement for first touch
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         let touch = touches.first
         if let location = touch?.location(in: self) {
@@ -105,6 +148,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
     
+    //    ball movement whitout teleporting
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         let touch = touches.first
         if let location = touch?.location(in: self) {
