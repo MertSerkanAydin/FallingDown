@@ -20,9 +20,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var startTouch = CGPoint()
     var highScore = 0
     var highScoreLabel: SKLabelNode!
-    var tapToStartLabel: SKLabelNode!
     var gameStarted = false
-    
+    var normalModeButton: SKSpriteNode!
+    var hardModeButton: SKSpriteNode!
     
     var score = 0 {
         didSet {
@@ -31,6 +31,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func didMove(to view: SKView) {
+        view.showsPhysics = true
         backgroundColor = .systemBlue
         physicsWorld.gravity = .zero
         physicsWorld.contactDelegate = self
@@ -46,8 +47,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             highScore = newScore
         }
         
+        //        oyun ilk açıldığında
         if gameStarted == false {
-            createTapToStartLabel()
+            createNormalModeButton()
+            createHardModeButton()
             createHighScoreLabel()
             createBall()
             createScoreLabel()
@@ -60,12 +63,29 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
     
+    //    time interval göre skor
     @objc func scoreUp() {
         score += 1
     }
     
-    //    ground oluşturma
-    @objc func createGround() {
+    //    normal mod butonu oluşturma
+    func createNormalModeButton()
+    {
+        normalModeButton = SKSpriteNode(imageNamed: "normalModeText")
+        normalModeButton.position = CGPoint(x:self.frame.midX / 2, y:self.frame.midY - 50);
+        self.addChild(normalModeButton)
+    }
+    
+    //    zor mod butonu oluşturma
+    func createHardModeButton()
+    {
+        hardModeButton = SKSpriteNode(imageNamed: "hardModeText")
+        hardModeButton.position = CGPoint(x:self.frame.midX * 1.5, y:self.frame.midY - 50);
+        self.addChild(hardModeButton)
+    }
+    
+    //    Normal mod ground oluşturma
+    @objc func createGroundNormalMode() {
         score += 1
         ground = SKSpriteNode(imageNamed: "ground")
         ground.physicsBody = SKPhysicsBody(texture: ground.texture!, alphaThreshold: 1.5, size: ground.size)
@@ -73,10 +93,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         ground.position = CGPoint(x: Int.random(in: 50...400), y: 0)
         ground.physicsBody?.restitution = 0.0
         ground.physicsBody?.velocity = CGVector(dx: 0, dy: 250)   //hızını ayarladık
-        //        ground.physicsBody?.angularVelocity = 5 //spin ekledik
         ground.physicsBody?.linearDamping = 0  //hızı asla yavaşlamayacak dedik
         addChild(ground)
-        //        ground.physicsBody?.angularDamping = 0 //spini asla yavaşlamıcak dedik
+    }
+    
+    //    hard mod ground oluşturma
+    @objc func createGroundHardMode() {
+        score += 1
+        ground = SKSpriteNode(imageNamed: "ground")
+        ground.physicsBody = SKPhysicsBody(texture: ground.texture!, alphaThreshold: 1.5, size: ground.size)
+        ground.physicsBody?.categoryBitMask = 1
+        ground.position = CGPoint(x: Int.random(in: 50...400), y: 0)
+        ground.physicsBody?.restitution = 0.0
+        ground.physicsBody?.velocity = CGVector(dx: 0, dy: 250)   //hızını ayarladık
+        ground.physicsBody?.angularVelocity = 5 //spin ekledik
+        ground.physicsBody?.linearDamping = 0  //hızı asla yavaşlamayacak dedik
+        addChild(ground)
+        ground.physicsBody?.angularDamping = 0 //spini asla yavaşlamıcak dedik
     }
     
     //    topu oluşturma
@@ -99,14 +132,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         score = 0
     }
     
-    //    creating tapToStartLabel
-    func createTapToStartLabel() {
-        tapToStartLabel = SKLabelNode(fontNamed: "")
-        tapToStartLabel.position = CGPoint(x: frame.midX, y: frame.midY - 20)
-        tapToStartLabel.text = "Tap to Start"
-        addChild(tapToStartLabel)
-    }
-    
     //    creating highscoreLabel
     func createHighScoreLabel() {
         highScoreLabel = SKLabelNode(fontNamed: "")
@@ -118,23 +143,55 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     //    game start
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if gameStarted == true {
-            highScoreLabel.removeFromParent()
-            tapToStartLabel.removeFromParent()
+        let touch = touches.first
+        let touchLocation = touch!.location(in: self)
+        
+        //        normal mod seçildiğinde
+        if normalModeButton.contains(touchLocation) {
+            if gameStarted == true {
+                hardModeButton.position.y = 3000
+                normalModeButton.removeFromParent()
+                hardModeButton.removeFromParent()
+                highScoreLabel.removeFromParent()
+                
+                ball.isHidden = false
+                scoreLabel.isHidden = false
+                
+                //        ground oluşturma hızı
+                gameTimer = Timer.scheduledTimer(timeInterval: 0.20, target: self, selector: #selector(createGroundNormalMode), userInfo: nil, repeats: true)
+                
+                //        score artma hızı
+                scoreTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(scoreUp), userInfo: nil, repeats: true)
+                
+                gameStarted = false
+                
+            }
             
-            
-            ball.isHidden = false
-            scoreLabel.isHidden = false
-            
-            //        ground oluşturma hızı
-            gameTimer = Timer.scheduledTimer(timeInterval: 0.20, target: self, selector: #selector(createGround), userInfo: nil, repeats: true)
-            
-            //        score artma hızı
-            scoreTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(scoreUp), userInfo: nil, repeats: true)
-            
-            gameStarted = false
-            
+            //            Hard mode seçildiğinde
+        } else if hardModeButton.contains(touchLocation) {
+            if gameStarted == true && highScore >= 100000 {
+                hardModeButton.position.y = 3000
+                normalModeButton.removeFromParent()
+                hardModeButton.removeFromParent()
+                highScoreLabel.removeFromParent()
+                
+                ball.isHidden = false
+                scoreLabel.isHidden = false
+                
+                //        ground oluşturma hızı
+                gameTimer = Timer.scheduledTimer(timeInterval: 0.15, target: self, selector: #selector(createGroundHardMode), userInfo: nil, repeats: true)
+                
+                //        score artma hızı
+                scoreTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(scoreUp), userInfo: nil, repeats: true)
+                
+                gameStarted = false
+            } else if highScore < 100000{
+                let ac = UIAlertController(title: "Yeterli Değilsin", message: "Zor modda oynamak için skorununun 10000 olması gerek", preferredStyle: .alert)
+                ac.addAction(UIAlertAction(title: "OK", style: .default))
+                self.view?.window?.rootViewController?.present(ac, animated: true, completion: nil)
+            }
         }
+        
     }
     
     //    ball movement for first touch
